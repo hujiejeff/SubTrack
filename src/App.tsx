@@ -24,9 +24,9 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_USER: UserProfile = {
-  name: 'Felix',
-  email: '2048779651qq@gmail.com',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+  name: '用户',
+  email: 'user@example.com',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=User',
   theme: 'system',
   baseCurrency: 'CNY'
 };
@@ -301,6 +301,17 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleClearData = () => {
+    if (confirm('确定要清除所有数据吗？此操作不可撤销。')) {
+      localStorage.removeItem(STORAGE_KEYS.SUBSCRIPTIONS);
+      localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
+      setSubscriptions([]);
+      setUserProfile(DEFAULT_USER);
+      alert('所有数据已清除');
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="min-h-screen pb-24 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Header */}
@@ -537,21 +548,14 @@ export default function App() {
                 </div>
 
                 <div 
-                  onClick={() => setIsSettingsModalOpen(true)}
-                  className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                  onClick={handleClearData}
+                  className="p-4 flex items-center justify-between hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg"><Settings size={18} /></div>
-                    <span className="font-medium text-slate-700 dark:text-slate-300">通用设置</span>
+                    <div className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg group-hover:bg-rose-100 dark:group-hover:bg-rose-900/40"><Plus size={18} className="rotate-45" /></div>
+                    <span className="font-medium text-rose-600 dark:text-rose-400">清除所有数据</span>
                   </div>
-                  <span className="text-xs text-slate-400">{userProfile.baseCurrency}</span>
                 </div>
-              </div>
-
-              <div className="p-6 bg-blue-600 rounded-3xl text-white shadow-xl shadow-blue-200">
-                <h3 className="font-bold text-lg mb-2">升级到 Pro</h3>
-                <p className="text-blue-100 text-sm mb-4">解锁无限订阅追踪、云端同步和更详细的支出分析报告。</p>
-                <button className="w-full py-3 bg-white text-blue-600 font-bold rounded-xl shadow-lg">立即升级</button>
               </div>
             </motion.div>
           )}
