@@ -4,13 +4,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { SpendingStats } from '../types';
 import { cn } from '../lib/utils';
+import { getCurrencySymbol } from '../lib/currency';
 
 interface StatsOverviewProps {
   stats: SpendingStats;
+  currency: string;
 }
 
-export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
+export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, currency }) => {
   const [breakdownType, setBreakdownType] = useState<'category' | 'item'>('category');
+  const symbol = getCurrencySymbol(currency);
 
   const chartData = breakdownType === 'category' ? stats.categoryBreakdown : stats.itemBreakdown;
 
@@ -20,17 +23,17 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-2xl bg-white shadow-sm border border-slate-100"
+          className="p-6 rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
               <CreditCard size={20} />
             </div>
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">月度支出</span>
+            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">月度支出</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-slate-900">¥{stats.monthlyTotal.toFixed(2)}</h3>
-            <span className="text-sm text-slate-500">/ 月</span>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{symbol}{stats.monthlyTotal.toFixed(2)}</h3>
+            <span className="text-sm text-slate-500 dark:text-slate-400">/ 月</span>
           </div>
         </motion.div>
 
@@ -38,17 +41,17 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="p-6 rounded-2xl bg-white shadow-sm border border-slate-100"
+          className="p-6 rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-emerald-600 dark:text-emerald-400">
               <TrendingUp size={20} />
             </div>
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">年度预估</span>
+            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">年度预估</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-slate-900">¥{stats.yearlyTotal.toFixed(2)}</h3>
-            <span className="text-sm text-slate-500">/ 年</span>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{symbol}{stats.yearlyTotal.toFixed(2)}</h3>
+            <span className="text-sm text-slate-500 dark:text-slate-400">/ 年</span>
           </div>
         </motion.div>
 
@@ -56,17 +59,17 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="p-6 rounded-2xl bg-white shadow-sm border border-slate-100"
+          className="p-6 rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
+            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600 dark:text-purple-400">
               <List size={20} />
             </div>
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">活跃订阅</span>
+            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">活跃订阅</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-slate-900">{stats.activeCount}</h3>
-            <span className="text-sm text-slate-500">个</span>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{stats.activeCount}</h3>
+            <span className="text-sm text-slate-500 dark:text-slate-400">个</span>
           </div>
         </motion.div>
 
@@ -74,7 +77,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="p-6 rounded-2xl bg-slate-900 text-white shadow-lg"
+          className="p-6 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white shadow-lg"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-white/10 rounded-lg text-white">
@@ -84,7 +87,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
           </div>
           <div>
             <h3 className="text-xl font-semibold">3月 15日</h3>
-            <p className="text-sm text-white/60 mt-1">Netflix 续费 ¥45.00</p>
+            <p className="text-sm text-white/60 mt-1">Netflix 续费 {symbol}45.00</p>
           </div>
         </motion.div>
       </div>
@@ -94,22 +97,22 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.3 }}
-        className="p-6 rounded-3xl bg-white shadow-sm border border-slate-100"
+        className="p-6 rounded-3xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800"
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
+            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400">
               <PieIcon size={18} />
             </div>
-            <h3 className="font-bold text-slate-900">支出明细</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white">支出明细</h3>
           </div>
           
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
             <button 
               onClick={() => setBreakdownType('category')}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                breakdownType === 'category' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                breakdownType === 'category' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               )}
             >
               <PieIcon size={14} />
@@ -119,7 +122,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
               onClick={() => setBreakdownType('item')}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                breakdownType === 'item' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                breakdownType === 'item' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               )}
             >
               <List size={14} />
@@ -147,8 +150,15 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [`¥${value.toFixed(2)}`, '月支出']}
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                formatter={(value: number) => [`${symbol}${value.toFixed(2)}`, '月支出']}
+                contentStyle={{ 
+                  borderRadius: '12px', 
+                  border: 'none', 
+                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                  backgroundColor: '#1e293b',
+                  color: '#fff'
+                }}
+                itemStyle={{ color: '#fff' }}
               />
               <Legend verticalAlign="bottom" height={36}/>
             </PieChart>
