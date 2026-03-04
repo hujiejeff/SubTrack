@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Plus, Search, Bell, LayoutDashboard, CreditCard, PieChart as PieIcon, Settings, User, Download, Upload, Edit3, Calendar as CalendarIcon, Sun, Moon, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Subscription, SpendingStats, UserProfile } from './types';
+import { Subscription, SpendingStats, UserProfile, SyncConfig } from './types';
 import { SubscriptionCard } from './components/SubscriptionCard';
 import { StatsOverview } from './components/StatsOverview';
 import { AddSubscriptionModal } from './components/AddSubscriptionModal';
@@ -17,6 +17,8 @@ import { TrendsChart } from './components/TrendsChart';
 import { cn } from './lib/utils';
 import { convertToBase } from './lib/currency';
 import { format, addMonths } from 'date-fns';
+import { SyncService, SyncData } from './services/syncService';
+import { Cloud, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const STORAGE_KEYS = {
   SUBSCRIPTIONS: 'subtrack_subscriptions',
@@ -114,6 +116,11 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'paused' | 'cancelled' | 'expired'>('all');
   const [currentTab, setCurrentTab] = useState<TabType | 'calendar'>('dashboard');
+  const [syncStatus, setSyncStatus] = useState<{ loading: boolean; error: string | null; success: string | null }>({
+    loading: false,
+    error: null,
+    success: null
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -309,6 +316,85 @@ export default function App() {
       setUserProfile(DEFAULT_USER);
       alert('所有数据已清除');
       window.location.reload();
+    }
+  };
+
+  const handleSyncPush = async () => {
+    if (!userProfile.syncConfig || userProfile.syncConfig.method === 'none') {
+      alert('请先在设置中配置同步方式');
+      setIsSettingsModalOpen(true);
+      return;
+    }
+
+    setSyncStatus({ loading: true, error: null, success: null });
+    try {
+      const data: SyncData = {
+        subscriptions,
+        profile: userProfile,
+        version: '1.0.0',
+        updatedAt: new Date().toISOString()
+      };
+
+      if (userProfile.syncConfig.method === 'gist' && userProfile.syncConfig.gist) {
+        const gistId = await SyncService.pushToGist(userProfile.syncConfig.gist, data);
+        if (gistId !== userProfile.syncConfig.gist.gistId) {
+          setUserProfile(prev => ({
+            ...prev,
+            syncConfig: {
+              ...prev.syncConfig!,
+              gist: { ...prev.syncConfig!.gist!, gistId },
+              lastSyncAt: new Date().toISOString()
+            }
+          }));
+        } else {
+          setUserProfile(prev => ({
+            ...prev,
+            syncConfig: { ...prev.syncConfig!, lastSyncAt: new Date().toISOString() }
+          }));
+        }
+      } else if (userProfile.syncConfig.method === 'webdav' && userProfile.syncConfig.webdav) {
+        await SyncService.pushToWebDAV(userProfile.syncConfig.webdav, data);
+        setUserProfile(prev => ({
+          ...prev,
+          syncConfig: { ...prev.syncConfig!, lastSyncAt: new Date().toISOString() }
+        }));
+      }
+      setSyncStatus({ loading: false, error: null, success: '数据已成功推送到云端' });
+    } catch (err: any) {
+      setSyncStatus({ loading: false, error: err.message || '同步失败', success: null });
+    }
+  };
+
+  const handleSyncPull = async () => {
+    if (!userProfile.syncConfig || userProfile.syncConfig.method === 'none') {
+      alert('请先在设置中配置同步方式');
+      setIsSettingsModalOpen(true);
+      return;
+    }
+
+    if (!confirm('从云端拉取数据将覆盖本地所有数据，确定继续吗？')) return;
+
+    setSyncStatus({ loading: true, error: null, success: null });
+    try {
+      let data: SyncData | null = null;
+      if (userProfile.syncConfig.method === 'gist' && userProfile.syncConfig.gist) {
+        data = await SyncService.pullFromGist(userProfile.syncConfig.gist);
+      } else if (userProfile.syncConfig.method === 'webdav' && userProfile.syncConfig.webdav) {
+        data = await SyncService.pullFromWebDAV(userProfile.syncConfig.webdav);
+      }
+
+      if (data) {
+        setSubscriptions(data.subscriptions);
+        // Merge profile but keep current sync config to avoid losing credentials if they differ
+        const { syncConfig, ...otherProfile } = data.profile;
+        setUserProfile(prev => ({
+          ...otherProfile,
+          syncConfig: { ...prev.syncConfig!, lastSyncAt: new Date().toISOString() }
+        }));
+        setSyncStatus({ loading: false, error: null, success: '已成功从云端恢复数据' });
+      }
+    } catch (err: any) {
+      setSyncStatus({ loading: false, error: err.message || '同步失败', success: null });
     }
   };
 
@@ -518,6 +604,67 @@ export default function App() {
                     <span className="font-medium text-slate-700 dark:text-slate-300">编辑个人资料</span>
                   </div>
                 </div>
+
+                <div 
+                  onClick={() => setIsSettingsModalOpen(true)}
+                  className="p-4 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg"><Settings size={18} /></div>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">通用设置与同步</span>
+                  </div>
+                </div>
+
+                {/* Sync Section */}
+                {userProfile.syncConfig && userProfile.syncConfig.method !== 'none' && (
+                  <div className="p-4 border-b border-slate-50 dark:border-slate-800 bg-blue-50/30 dark:bg-blue-900/10">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Cloud size={16} className="text-blue-500" />
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                          {userProfile.syncConfig.method === 'webdav' ? 'WebDAV 同步' : 'GitHub Gist 同步'}
+                        </span>
+                      </div>
+                      {userProfile.syncConfig.lastSyncAt && (
+                        <span className="text-[10px] text-slate-400">
+                          上次同步: {format(new Date(userProfile.syncConfig.lastSyncAt), 'MM-dd HH:mm')}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={handleSyncPush}
+                        disabled={syncStatus.loading}
+                        className="flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:border-blue-500 transition-all disabled:opacity-50"
+                      >
+                        {syncStatus.loading ? <RefreshCw size={14} className="animate-spin" /> : <CloudUpload size={14} className="text-blue-500" />}
+                        上传到云端
+                      </button>
+                      <button 
+                        onClick={handleSyncPull}
+                        disabled={syncStatus.loading}
+                        className="flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:border-blue-500 transition-all disabled:opacity-50"
+                      >
+                        {syncStatus.loading ? <RefreshCw size={14} className="animate-spin" /> : <CloudDownload size={14} className="text-emerald-500" />}
+                        从云端拉取
+                      </button>
+                    </div>
+
+                    {syncStatus.error && (
+                      <div className="mt-3 flex items-center gap-2 text-[10px] text-rose-500 bg-rose-50 dark:bg-rose-900/20 p-2 rounded-lg">
+                        <AlertCircle size={12} />
+                        {syncStatus.error}
+                      </div>
+                    )}
+                    {syncStatus.success && (
+                      <div className="mt-3 flex items-center gap-2 text-[10px] text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
+                        <CheckCircle2 size={12} />
+                        {syncStatus.success}
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 <div 
                   onClick={handleExport}

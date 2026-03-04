@@ -25,10 +25,25 @@ export interface SpendingStats {
   trends: { month: string; amount: number }[];
 }
 
+export interface SyncConfig {
+  method: 'none' | 'webdav' | 'gist';
+  webdav?: {
+    url: string;
+    username: string;
+    password?: string;
+  };
+  gist?: {
+    token: string;
+    gistId?: string;
+  };
+  lastSyncAt?: string;
+}
+
 export interface UserProfile {
   name: string;
   email: string;
   avatar: string;
   theme: 'light' | 'dark' | 'system';
   baseCurrency: string;
+  syncConfig?: SyncConfig;
 }

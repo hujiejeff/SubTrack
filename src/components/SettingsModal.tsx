@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Moon, Sun, Monitor } from 'lucide-react';
+import { X, Globe, Moon, Sun, Monitor, Cloud, Github, Database, Key, Lock, Link } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { EXCHANGE_RATES } from '../lib/currency';
@@ -111,6 +111,154 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Data Sync Setting */}
+              <div className="space-y-4">
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <Cloud size={16} className="text-blue-500" />
+                  数据同步
+                </label>
+                
+                <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+                  {[
+                    { id: 'none', label: '无', icon: Cloud },
+                    { id: 'webdav', label: 'WebDAV', icon: Database },
+                    { id: 'gist', label: 'GitHub Gist', icon: Github },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setFormData({ 
+                          ...formData, 
+                          syncConfig: { 
+                            ...(formData.syncConfig || { method: 'none' }), 
+                            method: item.id as any 
+                          } 
+                        })}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium transition-all",
+                          (formData.syncConfig?.method || 'none') === item.id
+                            ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                            : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                        )}
+                      >
+                        <Icon size={14} />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {formData.syncConfig?.method === 'webdav' && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                        <Link size={10} /> 服务器地址
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="https://dav.example.com/remote.php/dav/files/user/"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 dark:text-white"
+                        value={formData.syncConfig.webdav?.url || ''}
+                        onChange={e => setFormData({
+                          ...formData,
+                          syncConfig: {
+                            ...formData.syncConfig!,
+                            webdav: { ...(formData.syncConfig!.webdav || { url: '', username: '' }), url: e.target.value }
+                          }
+                        })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                          <Database size={10} /> 用户名
+                        </label>
+                        <input 
+                          type="text"
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 dark:text-white"
+                          value={formData.syncConfig.webdav?.username || ''}
+                          onChange={e => setFormData({
+                            ...formData,
+                            syncConfig: {
+                              ...formData.syncConfig!,
+                              webdav: { ...(formData.syncConfig!.webdav || { url: '', username: '' }), username: e.target.value }
+                            }
+                          })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                          <Lock size={10} /> 密码/应用令牌
+                        </label>
+                        <input 
+                          type="password"
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 dark:text-white"
+                          value={formData.syncConfig.webdav?.password || ''}
+                          onChange={e => setFormData({
+                            ...formData,
+                            syncConfig: {
+                              ...formData.syncConfig!,
+                              webdav: { ...(formData.syncConfig!.webdav || { url: '', username: '' }), password: e.target.value }
+                            }
+                          })}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {formData.syncConfig?.method === 'gist' && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                        <Key size={10} /> GitHub Token (需要 gist 权限)
+                      </label>
+                      <input 
+                        type="password"
+                        placeholder="ghp_xxxxxxxxxxxx"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 dark:text-white"
+                        value={formData.syncConfig.gist?.token || ''}
+                        onChange={e => setFormData({
+                          ...formData,
+                          syncConfig: {
+                            ...formData.syncConfig!,
+                            gist: { ...(formData.syncConfig!.gist || { token: '' }), token: e.target.value }
+                          }
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
+                        <Github size={10} /> Gist ID (可选，留空则创建新 Gist)
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="留空自动创建"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 dark:text-white"
+                        value={formData.syncConfig.gist?.gistId || ''}
+                        onChange={e => setFormData({
+                          ...formData,
+                          syncConfig: {
+                            ...formData.syncConfig!,
+                            gist: { ...(formData.syncConfig!.gist || { token: '' }), gistId: e.target.value }
+                          }
+                        })}
+                      />
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div className="pt-4">
