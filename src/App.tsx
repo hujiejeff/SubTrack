@@ -14,11 +14,15 @@ import { ProfileEditModal } from './components/ProfileEditModal';
 import { SettingsModal } from './components/SettingsModal';
 import { CalendarView } from './components/CalendarView';
 import { TrendsChart } from './components/TrendsChart';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { cn } from './lib/utils';
 import { convertToBase } from './lib/currency';
-import { format, addMonths } from 'date-fns';
+import { format, addMonths, parseISO } from 'date-fns';
 import { SyncService, SyncData } from './services/syncService';
-import { Cloud, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { fetchExchangeRates } from './services/exchangeRateService';
+import { downloadICS } from './lib/calendarExport';
+import { Cloud, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Star } from 'lucide-react';
+import { ExchangeRates } from './types';
 
 const STORAGE_KEYS = {
   SUBSCRIPTIONS: 'subtrack_subscriptions',
@@ -123,7 +127,16 @@ export default function App() {
     error: null,
     success: null
   });
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const loadRates = async () => {
+      const rates = await fetchExchangeRates(userProfile.baseCurrency);
+      if (rates) setExchangeRates(rates);
+    };
+    loadRates();
+  }, [userProfile.baseCurrency]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SUBSCRIPTIONS, JSON.stringify(subscriptions));
@@ -156,9 +169,11 @@ export default function App() {
 
   const stats = useMemo<SpendingStats>(() => {
     const activeSubs = subscriptions.filter(s => s.status === 'active');
+    const trialSubs = subscriptions.filter(s => s.status === 'trial');
+    const allRelevantSubs = [...activeSubs, ...trialSubs];
     
     const monthlyTotal = activeSubs.reduce((acc, s) => {
-      const priceInBase = convertToBase(s.price, s.currency, userProfile.baseCurrency);
+      const priceInBase = convertToBase(s.price, s.currency, userProfile.baseCurrency, exchangeRates?.rates);
       switch (s.cycle) {
         case 'monthly': return acc + priceInBase;
         case 'quarterly': return acc + priceInBase / 3;
@@ -171,14 +186,17 @@ export default function App() {
     // Category Breakdown
     const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
     const categoryMap = new Map<string, { value: number; color: string; icon?: string }>();
-    activeSubs.forEach(s => {
+    allRelevantSubs.forEach(s => {
       let monthlyPrice = 0;
-      const priceInBase = convertToBase(s.price, s.currency, userProfile.baseCurrency);
-      switch (s.cycle) {
-        case 'monthly': monthlyPrice = priceInBase; break;
-        case 'quarterly': monthlyPrice = priceInBase / 3; break;
-        case 'semi-annually': monthlyPrice = priceInBase / 6; break;
-        case 'yearly': monthlyPrice = priceInBase / 12; break;
+      // Trial items have 0 current cost
+      if (s.status !== 'trial') {
+        const priceInBase = convertToBase(s.price, s.currency, userProfile.baseCurrency, exchangeRates?.rates);
+        switch (s.cycle) {
+          case 'monthly': monthlyPrice = priceInBase; break;
+          case 'quarterly': monthlyPrice = priceInBase / 3; break;
+          case 'semi-annually': monthlyPrice = priceInBase / 6; break;
+          case 'yearly': monthlyPrice = priceInBase / 12; break;
+        }
       }
       
       if (!categoryMap.has(s.category)) {
@@ -204,14 +222,16 @@ export default function App() {
     }));
 
     // Item Breakdown
-    const itemBreakdown = activeSubs.map(s => {
+    const itemBreakdown = allRelevantSubs.map(s => {
       let monthlyPrice = 0;
-      const priceInBase = convertToBase(s.price, s.currency, userProfile.baseCurrency);
-      switch (s.cycle) {
-        case 'monthly': monthlyPrice = priceInBase; break;
-        case 'quarterly': monthlyPrice = priceInBase / 3; break;
-        case 'semi-annually': monthlyPrice = priceInBase / 6; break;
-        case 'yearly': monthlyPrice = priceInBase / 12; break;
+      if (s.status !== 'trial') {
+        const priceInBase = convertToBase(s.price, s.currency, userProfile.baseCurrency, exchangeRates?.rates);
+        switch (s.cycle) {
+          case 'monthly': monthlyPrice = priceInBase; break;
+          case 'quarterly': monthlyPrice = priceInBase / 3; break;
+          case 'semi-annually': monthlyPrice = priceInBase / 6; break;
+          case 'yearly': monthlyPrice = priceInBase / 12; break;
+        }
       }
       return {
         name: s.name,
@@ -228,9 +248,9 @@ export default function App() {
       return { month: monthStr, amount: monthlyTotal }; // Simplified for now
     });
 
-    // Find next billing subscription
+    // Find next billing subscription (including trial ends)
     const now = new Date();
-    const upcomingSubscription = activeSubs
+    const upcomingSubscription = allRelevantSubs
       .filter(s => new Date(s.nextBillingDate) >= now)
       .sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime())[0];
     
@@ -243,7 +263,7 @@ export default function App() {
       trends,
       upcomingSubscription
     };
-  }, [subscriptions, userProfile.baseCurrency]);
+  }, [subscriptions, userProfile.baseCurrency, exchangeRates]);
 
   const categories = useMemo(() => {
     const allCats = subscriptions.map(s => s.category);
@@ -262,8 +282,8 @@ export default function App() {
 
     return [...filtered].sort((a, b) => {
       if (userProfile.sortBy === 'price') {
-        const priceA = convertToBase(a.price, a.currency, userProfile.baseCurrency);
-        const priceB = convertToBase(b.price, b.currency, userProfile.baseCurrency);
+        const priceA = convertToBase(a.price, a.currency, userProfile.baseCurrency, exchangeRates?.rates);
+        const priceB = convertToBase(b.price, b.currency, userProfile.baseCurrency, exchangeRates?.rates);
         return priceB - priceA;
       }
       if (userProfile.sortBy === 'date') {
@@ -271,7 +291,7 @@ export default function App() {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [subscriptions, searchQuery, activeTab, selectedCategory, userProfile.sortBy, userProfile.baseCurrency]);
+  }, [subscriptions, searchQuery, activeTab, selectedCategory, userProfile.sortBy, userProfile.baseCurrency, exchangeRates]);
 
   const handleSaveSubscription = (data: Omit<Subscription, 'id'> | Subscription) => {
     if ('id' in data) {
@@ -479,7 +499,11 @@ export default function App() {
                   <p className="text-slate-500 dark:text-slate-400 text-sm">您的订阅支出概况</p>
                 </div>
               </div>
-              <StatsOverview stats={stats} currency={userProfile.baseCurrency} />
+              <StatsOverview 
+                stats={stats} 
+                currency={userProfile.baseCurrency} 
+                exchangeRateUpdate={exchangeRates?.lastUpdate}
+              />
               <TrendsChart data={stats.trends} currency={userProfile.baseCurrency} />
             </motion.div>
           )}
@@ -492,9 +516,18 @@ export default function App() {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-6"
             >
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">续费日历</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">直观管理您的扣款计划</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">续费日历</h2>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">直观管理您的扣款计划</p>
+                </div>
+                <button 
+                  onClick={() => downloadICS(subscriptions)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
+                >
+                  <CalendarIcon size={18} />
+                  导出日历
+                </button>
               </div>
               <CalendarView subscriptions={subscriptions} />
             </motion.div>
@@ -861,6 +894,8 @@ export default function App() {
         onSave={setUserProfile}
         initialData={userProfile}
       />
+
+      <UpdatePrompt />
     </div>
   );
 }

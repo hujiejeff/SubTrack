@@ -11,31 +11,27 @@ export default defineConfig(() => {
       react(), 
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+        registerType: 'prompt',
+        includeAssets: ['icon.svg'],
         manifest: {
           name: 'SubTrack - 订阅管理',
           short_name: 'SubTrack',
           description: '轻松管理您的所有订阅服务',
-          theme_color: '#000000',
-          background_color: '#000000',
+          theme_color: '#2563EB',
+          background_color: '#ffffff',
           display: 'standalone',
           icons: [
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-              sizes: '192x192',
-              type: 'image/png'
+              src: 'icon.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
+              purpose: 'any'
             },
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              src: 'icon.svg',
               sizes: '512x512',
-              type: 'image/png'
-            },
-            {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable'
+              type: 'image/svg+xml',
+              purpose: 'maskable'
             }
           ]
         }

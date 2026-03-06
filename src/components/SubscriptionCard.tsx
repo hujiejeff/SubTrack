@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Calendar, CheckCircle2, PauseCircle, XCircle, Edit2, Trash2, PlayCircle } from 'lucide-react';
+import { MoreVertical, Calendar, CheckCircle2, PauseCircle, XCircle, Edit2, Trash2, PlayCircle, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Subscription } from '../types';
 import { cn } from '../lib/utils';
@@ -51,6 +51,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     paused: { icon: PauseCircle, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', label: '已暂停' },
     cancelled: { icon: XCircle, color: 'text-rose-500 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/20', label: '已取消' },
     expired: { icon: Calendar, color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-100 dark:bg-slate-800', label: '已过期' },
+    trial: { icon: Star, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', label: '试用中' },
   };
 
   const StatusIcon = statusConfig[subscription.status].icon;
@@ -62,17 +63,24 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     'yearly': '年'
   };
 
+  const trialDaysLeft = subscription.isTrial && subscription.trialEndDate 
+    ? Math.max(0, Math.ceil((new Date(subscription.trialEndDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   if (displayMode === 'mini') {
     return (
       <motion.div 
         layout
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 transition-all"
+        className={cn(
+          "flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 transition-all",
+          subscription.isTrial && "border-amber-200 dark:border-amber-900/50"
+        )}
       >
         <div className="flex items-center gap-3">
           <div 
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-inner overflow-hidden shrink-0"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-inner overflow-hidden shrink-0 relative"
             style={{ backgroundColor: subscription.color }}
           >
             {subscription.icon ? (
@@ -80,10 +88,17 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             ) : (
               subscription.name.charAt(0)
             )}
+            {subscription.isTrial && (
+              <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
+                <Star size={12} className="text-white fill-white" />
+              </div>
+            )}
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[120px]">{subscription.name}</h3>
-            <p className="text-[10px] text-slate-400">{format(parseISO(subscription.nextBillingDate), 'MM-dd')}</p>
+            <p className="text-[10px] text-slate-400">
+              {subscription.isTrial ? `试用剩 ${trialDaysLeft} 天` : format(parseISO(subscription.nextBillingDate), 'MM-dd')}
+            </p>
           </div>
         </div>
         
@@ -130,17 +145,25 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         layout
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 transition-all"
+        className={cn(
+          "flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 transition-all",
+          subscription.isTrial && "border-amber-200 dark:border-amber-900/50"
+        )}
       >
         <div className="flex items-center gap-4">
           <div 
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-inner overflow-hidden shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-inner overflow-hidden shrink-0 relative"
             style={{ backgroundColor: subscription.color }}
           >
             {subscription.icon ? (
               <img src={subscription.icon} alt={subscription.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : (
               subscription.name.charAt(0)
+            )}
+            {subscription.isTrial && (
+              <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
+                <Star size={16} className="text-white fill-white" />
+              </div>
             )}
           </div>
           <div>
@@ -156,8 +179,15 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
         <div className="flex items-center gap-6">
           <div className="text-right hidden sm:block">
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider">下次扣款</p>
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{format(parseISO(subscription.nextBillingDate), 'MM-dd')}</p>
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider">
+              {subscription.isTrial ? '试用结束' : '下次扣款'}
+            </p>
+            <p className={cn(
+              "text-xs font-bold",
+              subscription.isTrial ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"
+            )}>
+              {format(parseISO(subscription.isTrial ? subscription.trialEndDate! : subscription.nextBillingDate), 'MM-dd')}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-lg font-bold text-slate-900 dark:text-white">
@@ -201,8 +231,20 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="group relative p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:shadow-md transition-all duration-300"
+      className={cn(
+        "group relative p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:shadow-md transition-all duration-300",
+        subscription.isTrial && "border-amber-200 dark:border-amber-900/50"
+      )}
     >
+      {subscription.isTrial && (
+        <div className="absolute -top-2 -right-2 z-10">
+          <div className="bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg flex items-center gap-1">
+            <Star size={10} className="fill-white" />
+            试用中
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-4">
           <div 

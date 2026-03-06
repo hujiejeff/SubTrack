@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Globe, Moon, Sun, Monitor, Cloud, Github, Database, Key, Lock, Link } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
-import { EXCHANGE_RATES } from '../lib/currency';
+import { DEFAULT_EXCHANGE_RATES } from '../lib/currency';
 import { cn } from '../lib/utils';
 
 interface SettingsModalProps {
@@ -27,7 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     onClose();
   };
 
-  const currencies = Object.keys(EXCHANGE_RATES);
+  const currencies = Object.keys(DEFAULT_EXCHANGE_RATES);
 
   return (
     <AnimatePresence>

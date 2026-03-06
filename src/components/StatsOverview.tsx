@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Calendar, TrendingUp, PieChart as PieIcon, List } from 'lucide-react';
+import { CreditCard, Calendar, TrendingUp, PieChart as PieIcon, List, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { SpendingStats } from '../types';
@@ -11,9 +11,10 @@ import { zhCN } from 'date-fns/locale';
 interface StatsOverviewProps {
   stats: SpendingStats;
   currency: string;
+  exchangeRateUpdate?: string;
 }
 
-export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, currency }) => {
+export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, currency, exchangeRateUpdate }) => {
   const [breakdownType, setBreakdownType] = useState<'category' | 'item'>('category');
   const symbol = getCurrencySymbol(currency);
 
@@ -21,6 +22,12 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, currency })
 
   return (
     <div className="space-y-6 mb-8">
+      {exchangeRateUpdate && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+          <RefreshCw size={12} className="animate-spin-slow" />
+          实时汇率已更新 ({new Date(exchangeRateUpdate).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' })})
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

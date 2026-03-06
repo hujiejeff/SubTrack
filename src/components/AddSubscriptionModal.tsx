@@ -26,7 +26,9 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
     color: '#3b82f6',
-    icon: ''
+    icon: '',
+    isTrial: false,
+    trialEndDate: ''
   });
 
   const [isFetchingIcon, setIsFetchingIcon] = useState(false);
@@ -42,7 +44,9 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
         startDate: initialData.startDate,
         endDate: initialData.endDate || '',
         color: initialData.color,
-        icon: initialData.icon || ''
+        icon: initialData.icon || '',
+        isTrial: initialData.isTrial || false,
+        trialEndDate: initialData.trialEndDate || ''
       });
     } else {
       setFormData({
@@ -54,7 +58,9 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
         startDate: new Date().toISOString().split('T')[0],
         endDate: '',
         color: '#3b82f6',
-        icon: ''
+        icon: '',
+        isTrial: false,
+        trialEndDate: ''
       });
     }
   }, [initialData, isOpen]);
@@ -88,11 +94,13 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
       cycle: formData.cycle,
       startDate: formData.startDate,
       endDate: formData.endDate || undefined,
-      nextBillingDate: formData.startDate,
-      status: initialData ? initialData.status : 'active' as const,
+      nextBillingDate: formData.isTrial ? formData.trialEndDate : formData.startDate,
+      status: formData.isTrial ? 'trial' : (initialData ? initialData.status : 'active') as any,
       category: formData.category,
       color: formData.color,
-      icon: formData.icon || undefined
+      icon: formData.icon || undefined,
+      isTrial: formData.isTrial,
+      trialEndDate: formData.isTrial ? formData.trialEndDate : undefined
     };
 
     if (initialData) {
@@ -158,6 +166,11 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
+                    {formData.isTrial && (
+                      <div className="absolute bottom-0 inset-x-0 bg-amber-500 text-[10px] text-center py-0.5 font-bold uppercase tracking-wider">
+                        Trial
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -172,6 +185,43 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                 />
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">试用模式</label>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isTrial: !formData.isTrial })}
+                    className={cn(
+                      "w-11 h-6 rounded-full transition-colors relative",
+                      formData.isTrial ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
+                    )}
+                  >
+                    <div className={cn(
+                      "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                      formData.isTrial ? "left-6" : "left-1"
+                    )} />
+                  </button>
+                </div>
+                {formData.isTrial && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700"
+                  >
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">试用结束日期</label>
+                      <input 
+                        required={formData.isTrial}
+                        type="date"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm dark:text-white"
+                        value={formData.trialEndDate}
+                        onChange={e => setFormData({ ...formData, trialEndDate: e.target.value })}
+                      />
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div>

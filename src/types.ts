@@ -1,4 +1,4 @@
-export type SubscriptionStatus = 'active' | 'paused' | 'cancelled' | 'expired';
+export type SubscriptionStatus = 'active' | 'paused' | 'cancelled' | 'expired' | 'trial';
 export type BillingCycle = 'monthly' | 'quarterly' | 'semi-annually' | 'yearly';
 
 export interface Subscription {
@@ -14,6 +14,14 @@ export interface Subscription {
   category: string;
   color: string;
   icon?: string;
+  isTrial?: boolean;
+  trialEndDate?: string;
+}
+
+export interface ExchangeRates {
+  base: string;
+  rates: Record<string, number>;
+  lastUpdate: string;
 }
 
 export interface SpendingStats {

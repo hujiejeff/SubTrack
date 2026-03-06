@@ -12,6 +12,13 @@
   --color-brand-500: #0ea5e9;
   --color-brand-600: #0284c7;
   --color-brand-700: #0369a1;
+
+  --animate-spin-slow: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @layer base {
