@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Subscription, BillingCycle } from '../types';
+import { cn } from '../lib/utils';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -24,8 +25,11 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
     category: '娱乐',
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
-    color: '#3b82f6'
+    color: '#3b82f6',
+    icon: ''
   });
+
+  const [isFetchingIcon, setIsFetchingIcon] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -37,7 +41,8 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
         category: initialData.category,
         startDate: initialData.startDate,
         endDate: initialData.endDate || '',
-        color: initialData.color
+        color: initialData.color,
+        icon: initialData.icon || ''
       });
     } else {
       setFormData({
@@ -48,10 +53,31 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
         category: '娱乐',
         startDate: new Date().toISOString().split('T')[0],
         endDate: '',
-        color: '#3b82f6'
+        color: '#3b82f6',
+        icon: ''
       });
     }
   }, [initialData, isOpen]);
+
+  // Auto-fetch icon when name changes
+  useEffect(() => {
+    if (!initialData && formData.name.length > 2) {
+      const timer = setTimeout(async () => {
+        setIsFetchingIcon(true);
+        try {
+          // Try to guess domain or use a search-based favicon service
+          const domain = formData.name.toLowerCase().replace(/\s+/g, '') + '.com';
+          const iconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+          setFormData(prev => ({ ...prev, icon: iconUrl }));
+        } catch (e) {
+          console.error('Failed to fetch icon');
+        } finally {
+          setIsFetchingIcon(false);
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.name, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +91,8 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
       nextBillingDate: formData.startDate,
       status: initialData ? initialData.status : 'active' as const,
       category: formData.category,
-      color: formData.color
+      color: formData.color,
+      icon: formData.icon || undefined
     };
 
     if (initialData) {
@@ -75,6 +102,11 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
     }
     onClose();
   };
+
+  const PRESET_COLORS = [
+    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
+    '#ec4899', '#06b6d4', '#f97316', '#64748b', '#000000'
+  ];
 
   return (
     <AnimatePresence>
@@ -91,9 +123,9 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar"
           >
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                 {initialData ? '编辑订阅' : '添加新订阅'}
               </h2>
@@ -103,6 +135,33 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Preview Section */}
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div 
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg relative overflow-hidden"
+                    style={{ backgroundColor: formData.color }}
+                  >
+                    {formData.icon ? (
+                      <img 
+                        src={formData.icon} 
+                        alt="Icon" 
+                        className="w-full h-full object-cover"
+                        onError={() => setFormData(prev => ({ ...prev, icon: '' }))}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      formData.name.charAt(0) || '?'
+                    )}
+                    {isFetchingIcon && (
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">服务名称</label>
                 <input 
@@ -112,6 +171,41 @@ export const AddSubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all dark:text-white"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">主题颜色</label>
+                <div className="flex flex-wrap gap-2">
+                  {PRESET_COLORS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, color: c })}
+                      className={cn(
+                        "w-8 h-8 rounded-full border-2 transition-all",
+                        formData.color === c ? "border-slate-900 dark:border-white scale-110" : "border-transparent hover:scale-105"
+                      )}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                  <input 
+                    type="color"
+                    className="w-8 h-8 rounded-full overflow-hidden border-none p-0 cursor-pointer"
+                    value={formData.color}
+                    onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">图标 URL (可选)</label>
+                <input 
+                  type="url"
+                  placeholder="https://example.com/logo.png"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all dark:text-white text-xs"
+                  value={formData.icon}
+                  onChange={e => setFormData({ ...formData, icon: e.target.value })}
                 />
               </div>
 

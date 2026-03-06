@@ -11,16 +11,20 @@ interface SubscriptionCardProps {
   onStatusChange: (id: string, status: Subscription['status']) => void;
   onEdit: (subscription: Subscription) => void;
   onDelete: (id: string) => void;
+  displayMode?: 'standard' | 'compact' | 'mini';
 }
 
 export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ 
   subscription, 
   onStatusChange, 
   onEdit, 
-  onDelete 
+  onDelete,
+  displayMode = 'standard'
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [openUpwards, setOpenUpwards] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -31,6 +35,16 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const toggleMenu = () => {
+    if (!showMenu && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 200px space below, open upwards
+      setOpenUpwards(spaceBelow < 200);
+    }
+    setShowMenu(!showMenu);
+  };
 
   const statusConfig = {
     active: { icon: CheckCircle2, color: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', label: '活跃中' },
@@ -48,6 +62,140 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     'yearly': '年'
   };
 
+  if (displayMode === 'mini') {
+    return (
+      <motion.div 
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <div 
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-inner overflow-hidden shrink-0"
+            style={{ backgroundColor: subscription.color }}
+          >
+            {subscription.icon ? (
+              <img src={subscription.icon} alt={subscription.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              subscription.name.charAt(0)
+            )}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[120px]">{subscription.name}</h3>
+            <p className="text-[10px] text-slate-400">{format(parseISO(subscription.nextBillingDate), 'MM-dd')}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-sm font-bold text-slate-900 dark:text-white">
+              {subscription.currency !== 'CNY' ? subscription.currency : '¥'}
+              {subscription.price.toFixed(0)}
+            </p>
+          </div>
+          <div className="relative" ref={menuRef}>
+            <button ref={buttonRef} onClick={toggleMenu} className="p-1 text-slate-400 hover:text-slate-600 rounded-md">
+              <MoreVertical size={14} />
+            </button>
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: openUpwards ? 10 : -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: openUpwards ? 10 : -10 }}
+                  className={cn(
+                    "absolute right-0 w-32 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-40 py-1 overflow-hidden",
+                    openUpwards ? "bottom-full mb-2" : "top-full mt-2"
+                  )}
+                >
+                  <button onClick={() => { onEdit(subscription); setShowMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <Edit2 size={12} /> 编辑
+                  </button>
+                  <button onClick={() => { onDelete(subscription.id); setShowMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                    <Trash2 size={12} /> 删除
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (displayMode === 'compact') {
+    return (
+      <motion.div 
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 transition-all"
+      >
+        <div className="flex items-center gap-4">
+          <div 
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-inner overflow-hidden shrink-0"
+            style={{ backgroundColor: subscription.color }}
+          >
+            {subscription.icon ? (
+              <img src={subscription.icon} alt={subscription.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              subscription.name.charAt(0)
+            )}
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900 dark:text-white">{subscription.name}</h3>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium", statusConfig[subscription.status].bg, statusConfig[subscription.status].color)}>
+                {statusConfig[subscription.status].label}
+              </span>
+              <span className="text-[10px] text-slate-400">{subscription.category}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider">下次扣款</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{format(parseISO(subscription.nextBillingDate), 'MM-dd')}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold text-slate-900 dark:text-white">
+              {subscription.currency !== 'CNY' ? subscription.currency : '¥'}
+              {subscription.price.toFixed(2)}
+            </p>
+            <p className="text-[10px] text-slate-400 uppercase">/ {cycleLabels[subscription.cycle]}</p>
+          </div>
+          <div className="relative" ref={menuRef}>
+            <button ref={buttonRef} onClick={toggleMenu} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+              <MoreVertical size={18} />
+            </button>
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: openUpwards ? 10 : -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: openUpwards ? 10 : -10 }}
+                  className={cn(
+                    "absolute right-0 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-40 py-1 overflow-hidden",
+                    openUpwards ? "bottom-full mb-2" : "top-full mt-2"
+                  )}
+                >
+                  <button onClick={() => { onEdit(subscription); setShowMenu(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <Edit2 size={14} /> 编辑订阅
+                  </button>
+                  <button onClick={() => { onDelete(subscription.id); setShowMenu(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                    <Trash2 size={14} /> 删除记录
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
       layout
@@ -58,10 +206,19 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-4">
           <div 
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-inner"
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-inner overflow-hidden"
             style={{ backgroundColor: subscription.color }}
           >
-            {subscription.name.charAt(0)}
+            {subscription.icon ? (
+              <img 
+                src={subscription.icon} 
+                alt={subscription.name} 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              subscription.name.charAt(0)
+            )}
           </div>
           <div>
             <h3 className="font-semibold text-slate-900 dark:text-white">{subscription.name}</h3>
@@ -71,7 +228,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         
         <div className="relative" ref={menuRef}>
           <button 
-            onClick={() => setShowMenu(!showMenu)}
+            ref={buttonRef}
+            onClick={toggleMenu}
             className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
             <MoreVertical size={18} />
@@ -80,10 +238,13 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <AnimatePresence>
             {showMenu && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                initial={{ opacity: 0, scale: 0.95, y: openUpwards ? 10 : -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                className="absolute right-0 top-full mt-2 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-40 py-1 overflow-hidden"
+                exit={{ opacity: 0, scale: 0.95, y: openUpwards ? 10 : -10 }}
+                className={cn(
+                  "absolute right-0 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-40 py-1 overflow-hidden",
+                  openUpwards ? "bottom-full mb-2" : "top-full mt-2"
+                )}
               >
                 <button 
                   onClick={() => { onEdit(subscription); setShowMenu(false); }}

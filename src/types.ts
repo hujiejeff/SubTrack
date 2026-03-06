@@ -20,9 +20,10 @@ export interface SpendingStats {
   monthlyTotal: number;
   yearlyTotal: number;
   activeCount: number;
-  categoryBreakdown: { name: string; value: number; color: string }[];
-  itemBreakdown: { name: string; value: number; color: string }[];
+  categoryBreakdown: { name: string; value: number; color: string; icon?: string }[];
+  itemBreakdown: { name: string; value: number; color: string; icon?: string }[];
   trends: { month: string; amount: number }[];
+  upcomingSubscription?: Subscription;
 }
 
 export interface SyncConfig {
@@ -46,4 +47,6 @@ export interface UserProfile {
   theme: 'light' | 'dark' | 'system';
   baseCurrency: string;
   syncConfig?: SyncConfig;
+  displayMode: 'standard' | 'compact' | 'mini';
+  sortBy: 'date' | 'price' | 'name';
 }

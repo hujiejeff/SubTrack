@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Search, Bell, LayoutDashboard, CreditCard, PieChart as PieIcon, Settings, User, Download, Upload, Edit3, Calendar as CalendarIcon, Sun, Moon, Monitor } from 'lucide-react';
+import { Plus, Search, Bell, LayoutDashboard, CreditCard, PieChart as PieIcon, Settings, User, Download, Upload, Edit3, Calendar as CalendarIcon, Sun, Moon, Monitor, LayoutGrid, List, AlignJustify, ArrowDownWideNarrow } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Subscription, SpendingStats, UserProfile, SyncConfig } from './types';
 import { SubscriptionCard } from './components/SubscriptionCard';
@@ -30,7 +30,9 @@ const DEFAULT_USER: UserProfile = {
   email: 'user@example.com',
   avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=User',
   theme: 'system',
-  baseCurrency: 'CNY'
+  baseCurrency: 'CNY',
+  displayMode: 'standard',
+  sortBy: 'date'
 };
 
 const MOCK_SUBSCRIPTIONS: Subscription[] = [
@@ -150,7 +152,7 @@ export default function App() {
       mediaQuery.addEventListener('change', listener);
       return () => mediaQuery.removeEventListener('change', listener);
     }
-  }, [userProfile.theme]);
+  }, [userProfile]);
 
   const stats = useMemo<SpendingStats>(() => {
     const activeSubs = subscriptions.filter(s => s.status === 'active');
@@ -167,7 +169,8 @@ export default function App() {
     }, 0);
 
     // Category Breakdown
-    const categoryMap = new Map<string, { value: number; color: string }>();
+    const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+    const categoryMap = new Map<string, { value: number; color: string; icon?: string }>();
     activeSubs.forEach(s => {
       let monthlyPrice = 0;
       const priceInBase = convertToBase(s.price, s.currency, userProfile.baseCurrency);
@@ -177,17 +180,27 @@ export default function App() {
         case 'semi-annually': monthlyPrice = priceInBase / 6; break;
         case 'yearly': monthlyPrice = priceInBase / 12; break;
       }
-      const existing = categoryMap.get(s.category) || { value: 0, color: s.color };
-      categoryMap.set(s.category, { 
-        value: existing.value + monthlyPrice, 
-        color: existing.color 
-      });
+      
+      if (!categoryMap.has(s.category)) {
+        categoryMap.set(s.category, { 
+          value: monthlyPrice, 
+          color: CATEGORY_COLORS[categoryMap.size % CATEGORY_COLORS.length], 
+          icon: s.icon 
+        });
+      } else {
+        const existing = categoryMap.get(s.category)!;
+        categoryMap.set(s.category, { 
+          ...existing,
+          value: existing.value + monthlyPrice, 
+        });
+      }
     });
 
     const categoryBreakdown = Array.from(categoryMap.entries()).map(([name, data]) => ({
       name,
       value: data.value,
-      color: data.color
+      color: data.color,
+      icon: data.icon
     }));
 
     // Item Breakdown
@@ -203,7 +216,8 @@ export default function App() {
       return {
         name: s.name,
         value: monthlyPrice,
-        color: s.color
+        color: s.color,
+        icon: s.icon
       };
     }).sort((a, b) => b.value - a.value);
 
@@ -213,6 +227,12 @@ export default function App() {
       const monthStr = format(date, 'MMM');
       return { month: monthStr, amount: monthlyTotal }; // Simplified for now
     });
+
+    // Find next billing subscription
+    const now = new Date();
+    const upcomingSubscription = activeSubs
+      .filter(s => new Date(s.nextBillingDate) >= now)
+      .sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime())[0];
     
     return {
       monthlyTotal,
@@ -220,7 +240,8 @@ export default function App() {
       activeCount: activeSubs.length,
       categoryBreakdown,
       itemBreakdown,
-      trends
+      trends,
+      upcomingSubscription
     };
   }, [subscriptions, userProfile.baseCurrency]);
 
@@ -232,13 +253,25 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const filteredSubscriptions = useMemo(() => {
-    return subscriptions.filter(sub => {
+    const filtered = subscriptions.filter(sub => {
       const matchesSearch = sub.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesTab = activeTab === 'all' || sub.status === activeTab;
       const matchesCategory = selectedCategory === 'all' || sub.category === selectedCategory;
       return matchesSearch && matchesTab && matchesCategory;
     });
-  }, [subscriptions, searchQuery, activeTab, selectedCategory]);
+
+    return [...filtered].sort((a, b) => {
+      if (userProfile.sortBy === 'price') {
+        const priceA = convertToBase(a.price, a.currency, userProfile.baseCurrency);
+        const priceB = convertToBase(b.price, b.currency, userProfile.baseCurrency);
+        return priceB - priceA;
+      }
+      if (userProfile.sortBy === 'date') {
+        return new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime();
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [subscriptions, searchQuery, activeTab, selectedCategory, userProfile.sortBy, userProfile.baseCurrency]);
 
   const handleSaveSubscription = (data: Omit<Subscription, 'id'> | Subscription) => {
     if ('id' in data) {
@@ -545,9 +578,61 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                      <button 
+                        onClick={() => setUserProfile(p => ({ ...p, displayMode: 'standard' }))}
+                        className={cn(
+                          "p-1.5 rounded-md transition-all",
+                          userProfile.displayMode === 'standard' ? "bg-white dark:bg-slate-700 text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        )}
+                        title="标准视图"
+                      >
+                        <LayoutGrid size={16} />
+                      </button>
+                      <button 
+                        onClick={() => setUserProfile(p => ({ ...p, displayMode: 'compact' }))}
+                        className={cn(
+                          "p-1.5 rounded-md transition-all",
+                          userProfile.displayMode === 'compact' ? "bg-white dark:bg-slate-700 text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        )}
+                        title="紧凑视图"
+                      >
+                        <List size={16} />
+                      </button>
+                      <button 
+                        onClick={() => setUserProfile(p => ({ ...p, displayMode: 'mini' }))}
+                        className={cn(
+                          "p-1.5 rounded-md transition-all",
+                          userProfile.displayMode === 'mini' ? "bg-white dark:bg-slate-700 text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        )}
+                        title="迷你视图"
+                      >
+                        <AlignJustify size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">排序:</span>
+                      <select 
+                        value={userProfile.sortBy}
+                        onChange={(e) => setUserProfile(p => ({ ...p, sortBy: e.target.value as any }))}
+                        className="bg-transparent text-xs font-bold text-slate-600 dark:text-slate-400 outline-none cursor-pointer hover:text-blue-600 transition-colors"
+                      >
+                        <option value="date">扣款日期</option>
+                        <option value="price">消费大小</option>
+                        <option value="name">名称</option>
+                      </select>
+                      <ArrowDownWideNarrow size={14} className="text-slate-400" />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className={cn(
+                  "grid gap-4",
+                  userProfile.displayMode === 'standard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                )}>
                   {filteredSubscriptions.map((sub) => (
                     <SubscriptionCard 
                       key={sub.id} 
@@ -555,6 +640,7 @@ export default function App() {
                       onStatusChange={handleStatusChange}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
+                      displayMode={userProfile.displayMode}
                     />
                   ))}
                   {filteredSubscriptions.length === 0 && (

@@ -5,6 +5,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { SpendingStats } from '../types';
 import { cn } from '../lib/utils';
 import { getCurrencySymbol } from '../lib/currency';
+import { format, parseISO } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 
 interface StatsOverviewProps {
   stats: SpendingStats;
@@ -86,8 +88,21 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, currency })
             <span className="text-xs font-medium text-white/50 uppercase tracking-wider">下个扣款日</span>
           </div>
           <div>
-            <h3 className="text-xl font-semibold">3月 15日</h3>
-            <p className="text-sm text-white/60 mt-1">Netflix 续费 {symbol}45.00</p>
+            {stats.upcomingSubscription ? (
+              <>
+                <h3 className="text-xl font-semibold">
+                  {format(parseISO(stats.upcomingSubscription.nextBillingDate), 'M月 d日', { locale: zhCN })}
+                </h3>
+                <p className="text-sm text-white/60 mt-1 truncate">
+                  {stats.upcomingSubscription.name} 续费 {symbol}{stats.upcomingSubscription.price.toFixed(2)}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-semibold">暂无计划</h3>
+                <p className="text-sm text-white/60 mt-1">没有活跃的订阅</p>
+              </>
+            )}
           </div>
         </motion.div>
       </div>
@@ -160,9 +175,44 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, currency })
                 }}
                 itemStyle={{ color: '#fff' }}
               />
-              <Legend verticalAlign="bottom" height={36}/>
             </PieChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* Detailed List with Icons */}
+        <div className="mt-6 space-y-3">
+          {chartData.map((item, index) => {
+            const percentage = ((item.value / stats.monthlyTotal) * 100).toFixed(1);
+            return (
+              <div key={index} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm overflow-hidden"
+                    style={{ backgroundColor: item.color }}
+                  >
+                    {item.icon ? (
+                      <img src={item.icon} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      item.name.charAt(0)
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">{item.name}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{percentage}% 的支出</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{symbol}{item.value.toFixed(2)}</p>
+                  <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-1 overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ backgroundColor: item.color, width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </motion.div>
     </div>
