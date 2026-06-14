@@ -63,33 +63,71 @@ export class SyncService {
     if (!gistId) throw new Error('Gist ID is required for pulling data');
     
     const trimmedToken = token?.trim() || '';
-    const authHeader = trimmedToken.startsWith('ghp_') || trimmedToken.startsWith('github_pat_')
-      ? `Bearer ${trimmedToken}`
-      : `token ${trimmedToken}`;
-
-    const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-      headers: {
-        'Authorization': authHeader,
-        'Accept': 'application/vnd.github.v3+json',
-      }
+    
+    // We will attempt with multiple authentication strategies:
+    // 1. Bearer token (Modern standard for all GitHub tokens, Fine-grained, Classic, OAuth, etc.)
+    // 2. Token header (Legacy but still widely supported format)
+    // 3. No authentication header (Anonymous fallback - works brilliantly if the Gist is public or secret/unlisted, even if the provided token is invalid/expired)
+    const strategies: { authHeader?: string; name: string }[] = [];
+    
+    if (trimmedToken) {
+      strategies.push({
+        authHeader: `Bearer ${trimmedToken}`,
+        name: 'Bearer Token'
+      });
+      strategies.push({
+        authHeader: `token ${trimmedToken}`,
+        name: 'Legacy Token'
+      });
+    }
+    
+    // Always add anonymous retrieval as a fallback
+    strategies.push({
+      name: 'Anonymous (No Auth)'
     });
 
-    if (!response.ok) {
-      let errMsg = 'Failed to pull from Gist';
+    let lastError: Error | null = null;
+
+    for (const strategy of strategies) {
       try {
-        const err = await response.json();
-        errMsg = err.message || errMsg;
-      } catch (e) {
-        errMsg = `${errMsg} (Status: ${response.status})`;
+        const headers: Record<string, string> = {
+          'Accept': 'application/vnd.github.v3+json',
+        };
+        
+        if (strategy.authHeader) {
+          headers['Authorization'] = strategy.authHeader;
+        }
+
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+          headers
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const file = result.files[SYNC_FILE_NAME];
+          if (!file) throw new Error(`Sync file (${SYNC_FILE_NAME}) not found in Gist`);
+          
+          try {
+            return JSON.parse(file.content);
+          } catch (e) {
+            throw new Error('Sync file content in Gist is not valid JSON');
+          }
+        } else {
+          let errMsg = 'Failed to pull from Gist';
+          try {
+            const err = await response.json();
+            errMsg = err.message || errMsg;
+          } catch (e) {
+            errMsg = `${errMsg} (Status: ${response.status})`;
+          }
+          lastError = new Error(`${errMsg} (${response.status}) via ${strategy.name}`);
+        }
+      } catch (e: any) {
+        lastError = e instanceof Error ? e : new Error(String(e));
       }
-      throw new Error(`${errMsg} (${response.status})`);
     }
 
-    const result = await response.json();
-    const file = result.files[SYNC_FILE_NAME];
-    if (!file) throw new Error('Sync file not found in Gist');
-
-    return JSON.parse(file.content);
+    throw lastError || new Error('All Gist pull attempts failed');
   }
 
   static async pushToWebDAV(config: NonNullable<SyncConfig['webdav']>, data: SyncData): Promise<void> {
